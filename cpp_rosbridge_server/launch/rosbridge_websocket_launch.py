@@ -1,0 +1,41 @@
+from launch import LaunchDescription
+from launch_ros.actions import LifecycleNode, Node
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.substitutions import LaunchConfiguration
+
+def generate_launch_description():
+    
+    cpp_rosbridge_node = LifecycleNode(
+        package="cpp_rosbridge_server",
+        executable="rosbridge_server_node",
+        name="cpp_rosbridge_server",
+        namespace="",
+        output="screen",
+        parameters=[
+            {
+                "port": 9091,
+                "address": "127.0.0.1",
+                "num_threads": 4,
+            }
+        ],
+    )
+    
+    habilis_communicator_node = Node(
+        package="habilis_communicator",
+        executable="habilis_communicator",
+        name="habilis_communicator",
+        output="screen",
+    )
+
+    nginx_process = ExecuteProcess(
+        cmd=["bash", "-lc", "nginx -s stop >/dev/null 2>&1 || true; nginx -t && nginx -g 'daemon off;'"],
+        output="screen",
+    )
+
+    return LaunchDescription(
+        [
+            cpp_rosbridge_node,
+            habilis_communicator_node,
+            nginx_process,
+        ]
+    )

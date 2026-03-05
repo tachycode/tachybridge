@@ -1,0 +1,10 @@
+# Configuration for actions requiring specialized bridges
+#
+# GenericBridge now auto-detects CompressedImage fields via introspection
+# and sends them as binary WebSocket frames. Most actions no longer need
+# specialized bridges.
+#
+# If a future action needs truly custom handling beyond image extraction,
+# add it here and register a custom bridge in register_builtin_bridges().
+
+specialized: []
