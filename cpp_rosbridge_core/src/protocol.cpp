@@ -248,7 +248,7 @@ static rclcpp::QoS detect_qos_for_subscription(
         qos.transient_local();
     }
 
-    RCLCPP_INFO(node->get_logger(),
+    RCLCPP_DEBUG(node->get_logger(),
                 "QoS for '%s': %s / %s (found %zu publisher(s))",
                 topic.c_str(),
                 (publishers.empty() || any_best_effort) ? "BEST_EFFORT" : "RELIABLE",
@@ -302,18 +302,29 @@ void SubscriptionManager::subscribe(const std::string& topic, const std::string&
                     {"msg", msg_json}
                 };
 
-                // Fan-out to all sessions subscribed to this topic
-                std::shared_lock lock(mutex_);
-                auto it = subscriptions_.find(topic);
-                if (it != subscriptions_.end()) {
-                    for (auto& [sid, send_fn] : it->second.senders) {
-                        try {
-                            send_fn(pub_message);
-                        } catch (const std::exception& e) {
-                            RCLCPP_WARN(node_->get_logger(),
-                                        "Failed to send to session %lu on '%s': %s",
-                                        sid, topic.c_str(), e.what());
+                // Serialize once, share across all sessions
+                auto serialized = std::make_shared<nlohmann::json>(std::move(pub_message));
+
+                // Snapshot senders under lock, then fan-out without holding it
+                std::vector<std::pair<uint64_t, SenderFn>> senders_snapshot;
+                {
+                    std::shared_lock lock(mutex_);
+                    auto it = subscriptions_.find(topic);
+                    if (it != subscriptions_.end()) {
+                        senders_snapshot.reserve(it->second.senders.size());
+                        for (auto& [sid, fn] : it->second.senders) {
+                            senders_snapshot.emplace_back(sid, fn);
                         }
+                    }
+                }
+
+                for (auto& [sid, send_fn] : senders_snapshot) {
+                    try {
+                        send_fn(*serialized);
+                    } catch (const std::exception& e) {
+                        RCLCPP_WARN(node_->get_logger(),
+                                    "Failed to send to session %lu on '%s': %s",
+                                    sid, topic.c_str(), e.what());
                     }
                 }
             });
