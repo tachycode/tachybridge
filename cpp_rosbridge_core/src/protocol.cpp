@@ -279,8 +279,8 @@ void SubscriptionManager::subscribe(const std::string& topic, const std::string&
     TopicEntry entry;
     entry.senders[session_id] = std::move(sender);
 
-    RCLCPP_INFO(node_->get_logger(),
-                "Creating subscription on '%s' [%s]", topic.c_str(), type.c_str());
+    RCLCPP_DEBUG(node_->get_logger(),
+                 "Creating subscription on '%s' [%s]", topic.c_str(), type.c_str());
 
     try {
         auto qos = detect_qos_for_subscription(node_, topic);
@@ -351,8 +351,8 @@ void SubscriptionManager::unsubscribe(const std::string& topic, uint64_t session
                  session_id, topic.c_str(), it->second.senders.size());
 
     if (it->second.senders.empty()) {
-        RCLCPP_INFO(node_->get_logger(),
-                    "No subscribers left on '%s', destroying subscription", topic.c_str());
+        RCLCPP_DEBUG(node_->get_logger(),
+                     "No subscribers left on '%s', destroying subscription", topic.c_str());
         subscriptions_.erase(it);
     }
 }
@@ -363,9 +363,9 @@ void SubscriptionManager::unsubscribe_all(uint64_t session_id) {
     for (auto it = subscriptions_.begin(); it != subscriptions_.end();) {
         it->second.senders.erase(session_id);
         if (it->second.senders.empty()) {
-            RCLCPP_INFO(node_->get_logger(),
-                        "No subscribers left on '%s', destroying subscription",
-                        it->first.c_str());
+            RCLCPP_DEBUG(node_->get_logger(),
+                         "No subscribers left on '%s', destroying subscription",
+                         it->first.c_str());
             it = subscriptions_.erase(it);
         } else {
             ++it;
