@@ -66,41 +66,48 @@ void CallService::handle_message(const nlohmann::json& message, std::function<vo
     std::string type_name = message["type"];
     auto node = protocol_->get_node();
 
-    RCLCPP_INFO(node->get_logger(), "Calling service '%s' of type '%s'",
+    RCLCPP_DEBUG(node->get_logger(), "Calling service '%s' of type '%s'",
         service_name.c_str(), type_name.c_str());
 
-    RequestContext ctx{service_name, type_name, node, message, sender};
+    // Offload the entire service call (including readiness polling) to the
+    // work pool so it never blocks a WebSocket I/O thread.
+    auto msg_copy = message;
+    auto sender_copy = sender;
+    protocol_->post_work(
+        [this, msg_copy, sender_copy, service_name, type_name, node]() mutable {
+        auto sender_fn = sender_copy;
+        RequestContext ctx{service_name, type_name, node, msg_copy, sender_fn};
 
-    auto client = get_or_create_client(ctx);
-    if (!client) {
-        return;
-    }
-
-    // Use service_is_ready() polling instead of wait_for_service().
-    // wait_for_service() uses graph event waitsets internally, which conflict
-    // with the executor's waitset when called from a non-executor thread
-    // (e.g. WebSocket I/O thread), causing it to never detect the service.
-    bool ready = client->service_is_ready();
-    if (!ready) {
-        constexpr int kMaxRetries = 50;           // 50 x 100ms = 5s max
-        constexpr auto kPollInterval = std::chrono::milliseconds(100);
-        for (int i = 0; i < kMaxRetries && !ready; ++i) {
-            std::this_thread::sleep_for(kPollInterval);
-            ready = client->service_is_ready();
+        auto client = get_or_create_client(ctx);
+        if (!client) {
+            return;
         }
-    }
 
-    if (!ready) {
-        RCLCPP_WARN(node->get_logger(),
-            "Service '%s' not available (polled for 5s)", service_name.c_str());
-        auto response = make_service_response(service_name, false,
-            nlohmann::json::object(), "Service not available");
-        attach_id(response, message);
-        sender(response);
-        return;
-    }
+        // Poll service_is_ready() on the work pool thread (not I/O thread).
+        // wait_for_service() uses graph event waitsets internally, which conflict
+        // with the executor's waitset when called from a non-executor thread.
+        bool ready = client->service_is_ready();
+        if (!ready) {
+            constexpr int kMaxRetries = 50;           // 50 x 100ms = 5s max
+            constexpr auto kPollInterval = std::chrono::milliseconds(100);
+            for (int i = 0; i < kMaxRetries && !ready; ++i) {
+                std::this_thread::sleep_for(kPollInterval);
+                ready = client->service_is_ready();
+            }
+        }
 
-    send_request(client, ctx);
+        if (!ready) {
+            RCLCPP_WARN(node->get_logger(),
+                "Service '%s' not available (polled for 5s)", service_name.c_str());
+            auto response = make_service_response(service_name, false,
+                nlohmann::json::object(), "Service not available");
+            attach_id(response, msg_copy);
+            sender_fn(response);
+            return;
+        }
+
+        send_request(client, ctx);
+    });
 }
 
 std::shared_ptr<rclcpp::GenericClient> CallService::get_or_create_client(const RequestContext& ctx) {
