@@ -45,11 +45,17 @@ class Session : public std::enable_shared_from_this<Session> {
     uint64_t id_;
 
 public:
+    using DisconnectCallback = std::function<void(uint64_t session_id)>;
+
+    static constexpr size_t kMaxWriteQueueSize = 1024;
+
     explicit Session(tcp::socket&& socket, MessageCallback on_message_cb)
         : ws_(std::move(socket)), on_message_cb_(on_message_cb),
           id_(next_id_.fetch_add(1)) {}
 
     uint64_t id() const { return id_; }
+
+    void set_on_disconnect(DisconnectCallback cb) { on_disconnect_cb_ = std::move(cb); }
 
     void run() {
         net::dispatch(ws_.get_executor(),
@@ -59,6 +65,10 @@ public:
     void send_text(std::string message) {
         net::post(ws_.get_executor(),
             [self = shared_from_this(), msg = std::move(message)]() {
+                if (self->write_queue_.size() >= kMaxWriteQueueSize) {
+                    // Backpressure: drop oldest message for slow clients
+                    self->write_queue_.pop_front();
+                }
                 QueueItem item;
                 item.is_binary = false;
                 item.text = std::move(msg);
@@ -73,6 +83,9 @@ public:
     void send_binary(std::vector<uint8_t> data) {
         net::post(ws_.get_executor(),
             [self = shared_from_this(), d = std::move(data)]() {
+                if (self->write_queue_.size() >= kMaxWriteQueueSize) {
+                    self->write_queue_.pop_front();
+                }
                 QueueItem item;
                 item.is_binary = true;
                 item.binary = std::move(d);
@@ -111,11 +124,23 @@ private:
             beast::bind_front_handler(&Session::on_read, shared_from_this()));
     }
 
+    DisconnectCallback on_disconnect_cb_;
+
+    void fire_disconnect() {
+        if (on_disconnect_cb_) {
+            try { on_disconnect_cb_(id_); } catch (...) {}
+        }
+    }
+
     void on_read(beast::error_code ec, std::size_t bytes_transferred) {
         boost::ignore_unused(bytes_transferred);
-        if (ec == websocket::error::closed) return;
+        if (ec == websocket::error::closed) {
+            fire_disconnect();
+            return;
+        }
         if (ec) {
             RCLCPP_WARN(rclcpp::get_logger("websocket_server"), "read: %s", ec.message().c_str());
+            fire_disconnect();
             return;
         }
 

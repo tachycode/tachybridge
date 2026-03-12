@@ -50,6 +50,45 @@ if(BUILD_TESTING)
     )
     target_link_libraries(test_execute_cli nlohmann_json::nlohmann_json)
   endif()
+
+  ament_add_gtest(bench_performance src/bench_performance.cpp)
+  if(TARGET bench_performance)
+    ament_target_dependencies(
+      bench_performance
+      cpp_rosbridge_core
+      rclcpp_lifecycle
+      std_msgs
+    )
+    target_link_libraries(bench_performance
+      nlohmann_json::nlohmann_json
+      Boost::system
+      Threads::Threads
+    )
+  endif()
+
+  find_package(cpp_rosbridge_server QUIET)
+  ament_add_gtest(test_performance_fixes src/test_performance_fixes.cpp)
+  if(TARGET test_performance_fixes)
+    ament_target_dependencies(
+      test_performance_fixes
+      cpp_rosbridge_core
+      rclcpp_lifecycle
+      std_msgs
+    )
+    target_link_libraries(test_performance_fixes
+      nlohmann_json::nlohmann_json
+      Boost::system
+      Threads::Threads
+    )
+    # Include websocket_server.hpp from the server package
+    if(cpp_rosbridge_server_FOUND)
+      ament_target_dependencies(test_performance_fixes cpp_rosbridge_server)
+    else()
+      target_include_directories(test_performance_fixes PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../cpp_rosbridge_server/include
+      )
+    endif()
+  endif()
 endif()
 
 ament_package()
