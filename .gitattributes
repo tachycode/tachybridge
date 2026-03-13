@@ -1,0 +1,2 @@
+# Keep main's version of docs during merge (never pull docs from dev)
+docs/** merge=ours
