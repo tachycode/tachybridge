@@ -54,6 +54,12 @@ These rules prevent recurrence of critical performance issues found in the initi
 - Default: `work_pool_threads = 4` (minimum for production)
 - Consider: `std::thread::hardware_concurrency()` as upper bound reference
 
+## Branching Strategy
+
+- **`dev`**: Development branch with full documentation (`docs/`)
+- **`main`**: Production branch — `docs/` is excluded
+- **Merge**: Use `./scripts/merge-dev-to-main.sh` to merge dev → main (auto-excludes docs)
+
 ## Troubleshooting
 
-See [docs/troubleshooting/README.md](docs/troubleshooting/README.md) for resolved issues and patterns.
+See [docs/troubleshooting/README.md](docs/troubleshooting/README.md) for resolved issues and patterns (available on `dev` branch).
