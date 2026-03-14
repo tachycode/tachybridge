@@ -12,8 +12,12 @@ colcon build --packages-up-to cpp_rosbridge_tests \
   -Dnlohmann_json_DIR=/home/weed/miniconda3/share/cmake/nlohmann_json
 ```
 
-> **Note**: This branch uses Zenoh DDS (`rmw_zenoh_cpp`) instead of the default Cyclone DDS.
-> Ensure `ros-jazzy-rmw-zenoh-cpp` is installed: `sudo apt install ros-jazzy-rmw-zenoh-cpp`
+> **Note**: Default middleware is Zenoh DDS (`rmw_zenoh_cpp`). To switch to Cyclone DDS at launch:
+> ```bash
+> ros2 launch cpp_rosbridge_server rosbridge_websocket_launch.py rmw:=rmw_cyclonedds_cpp
+> ```
+> Ensure the desired middleware is installed:
+> `sudo apt install ros-jazzy-rmw-zenoh-cpp ros-jazzy-rmw-cyclonedds-cpp`
 
 ## Performance Rules (TSG-001)
 
