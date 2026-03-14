@@ -5,10 +5,15 @@ from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
 
-    # Use Zenoh as the RMW implementation
+    rmw_arg = DeclareLaunchArgument(
+        "rmw",
+        default_value="rmw_zenoh_cpp",
+        description="RMW implementation (rmw_zenoh_cpp or rmw_cyclonedds_cpp)",
+    )
+
     set_rmw = SetEnvironmentVariable(
         name="RMW_IMPLEMENTATION",
-        value="rmw_zenoh_cpp",
+        value=LaunchConfiguration("rmw"),
     )
 
     cpp_rosbridge_node = LifecycleNode(
@@ -40,6 +45,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            rmw_arg,
             set_rmw,
             cpp_rosbridge_node,
             habilis_communicator_node,

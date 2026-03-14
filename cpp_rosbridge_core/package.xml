@@ -16,6 +16,7 @@
   <depend>rosidl_typesupport_introspection_cpp</depend>
 
   <exec_depend>rmw_zenoh_cpp</exec_depend>
+  <exec_depend>rmw_cyclonedds_cpp</exec_depend>
 
   <!-- Optional: only needed for action auto-registration at build time.
        std_msgs, sensor_msgs, example_interfaces are loaded at runtime via
