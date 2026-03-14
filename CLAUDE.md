@@ -6,10 +6,14 @@
 # From workspace root (habilis_communicator/)
 export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v miniconda | tr '\n' ':')
 source /opt/ros/jazzy/setup.bash
+export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 colcon build --packages-up-to cpp_rosbridge_tests \
   --cmake-args -DCMAKE_BUILD_TYPE=Release \
   -Dnlohmann_json_DIR=/home/weed/miniconda3/share/cmake/nlohmann_json
 ```
+
+> **Note**: This branch uses Zenoh DDS (`rmw_zenoh_cpp`) instead of the default Cyclone DDS.
+> Ensure `ros-jazzy-rmw-zenoh-cpp` is installed: `sudo apt install ros-jazzy-rmw-zenoh-cpp`
 
 ## Performance Rules (TSG-001)
 

@@ -1,10 +1,16 @@
 from launch import LaunchDescription
 from launch_ros.actions import LifecycleNode, Node
-from launch.actions import DeclareLaunchArgument, ExecuteProcess
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, SetEnvironmentVariable
 from launch.substitutions import LaunchConfiguration
 
 def generate_launch_description():
-    
+
+    # Use Zenoh as the RMW implementation
+    set_rmw = SetEnvironmentVariable(
+        name="RMW_IMPLEMENTATION",
+        value="rmw_zenoh_cpp",
+    )
+
     cpp_rosbridge_node = LifecycleNode(
         package="cpp_rosbridge_server",
         executable="rosbridge_server_node",
@@ -34,6 +40,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            set_rmw,
             cpp_rosbridge_node,
             habilis_communicator_node,
             nginx_process,
