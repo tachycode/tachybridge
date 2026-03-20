@@ -109,7 +109,7 @@ private:
     rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr robot_type_pub_;
     rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr error_pub_;
     rclcpp_lifecycle::LifecyclePublisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr action_pub_;
-    rclcpp_lifecycle::LifecyclePublisher<std_msgs::msg::String>::SharedPtr request_pub_;
+    // request_pub_ removed — REQUEST forwarded to AI Manager via ZMQ
 
     // --- ROS Subscribers (ROS -> AI for OBSERVATION) ---
     std::vector<rclcpp::Subscription<sensor_msgs::msg::CompressedImage>::SharedPtr> camera_subs_;

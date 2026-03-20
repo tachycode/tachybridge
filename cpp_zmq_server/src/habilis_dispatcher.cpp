@@ -50,7 +50,7 @@ void HabilisDispatcher::configure() {
     robot_type_pub_ = node_->create_publisher<std_msgs::msg::String>("/robot_type", 10);
     error_pub_ = node_->create_publisher<std_msgs::msg::String>("/ai/error", 10);
     action_pub_ = node_->create_publisher<trajectory_msgs::msg::JointTrajectory>(action_topic_, 10);
-    request_pub_ = node_->create_publisher<std_msgs::msg::String>("/ai/request", 10);
+    // /ai/request publisher removed — REQUEST is now forwarded to AI Manager via ZMQ
 
     // Create camera subscribers (ROS -> AI for OBSERVATION)
     if (camera_topics_.size() != camera_names_.size() && !camera_topics_.empty()) {
@@ -448,18 +448,11 @@ void HabilisDispatcher::assemble_and_send_observation() {
 // --- REQUEST/RESPONSE correlation ---
 
 void HabilisDispatcher::handle_request(const msgpack::object& body) {
-    // Forward request to ROS as JSON string
-    auto msg = std::make_unique<std_msgs::msg::String>();
-    try {
-        std::stringstream ss;
-        ss << body;
-        msg->data = ss.str();
-    } catch (...) {
-        msg->data = "{}";
-    }
-    request_pub_->publish(std::move(*msg));
+    // Forward REQUEST to AI Manager for processing.
+    // AI Manager will handle it (e.g., GetLerobotDataList, GetModelWeightList)
+    // and send back a RESPONSE message with the matching response name.
 
-    // Extract response name for correlation
+    // Extract response name for correlation tracking
     try {
         auto map = body.as<std::map<std::string, msgpack::object>>();
         auto it = map.find("response");
@@ -494,88 +487,76 @@ void HabilisDispatcher::handle_request(const msgpack::object& body) {
         RCLCPP_WARN(node_->get_logger(),
                     "REQUEST: failed to extract response name from body");
     }
+
+    // Forward raw msgpack to AI Manager
+    msgpack::sbuffer buf;
+    msgpack::packer<msgpack::sbuffer> pk(buf);
+    pk.pack(body);
+
+    send_to_ai(HabilisMsgType::REQUEST, buf);
+    RCLCPP_DEBUG(node_->get_logger(), "REQUEST: forwarded to AI Manager");
 }
 
 void HabilisDispatcher::handle_response(const msgpack::object& body) {
-    // Extract name from {msg: {name: "...", value: ...}}
+    // Extract name from {msg: {name: "...", value: ...}} for correlation,
+    // then broadcast the RESPONSE via PUB socket to all subscribers (Frontend).
+    std::string name;
     try {
         auto map = body.as<std::map<std::string, msgpack::object>>();
         auto it_msg = map.find("msg");
-        if (it_msg == map.end()) {
-            RCLCPP_DEBUG(node_->get_logger(), "RESPONSE: no 'msg' field, dropping");
-            return;
+        if (it_msg != map.end()) {
+            auto msg_map = it_msg->second.as<std::map<std::string, msgpack::object>>();
+            auto it_name = msg_map.find("name");
+            if (it_name != msg_map.end()) {
+                name = it_name->second.as<std::string>();
+            }
         }
+    } catch (...) {
+        // Non-standard RESPONSE format — still forward it
+    }
 
-        auto msg_map = it_msg->second.as<std::map<std::string, msgpack::object>>();
-        auto it_name = msg_map.find("name");
-        if (it_name == msg_map.end()) {
-            RCLCPP_DEBUG(node_->get_logger(), "RESPONSE: no 'name' field, dropping");
-            return;
-        }
-
-        std::string name = it_name->second.as<std::string>();
-
+    // Clear correlation entry if matched
+    if (!name.empty()) {
         std::lock_guard<std::mutex> lock(pending_mutex_);
         auto it = pending_requests_.find(name);
         if (it != pending_requests_.end()) {
             pending_requests_.erase(it);
             RCLCPP_DEBUG(node_->get_logger(),
                          "RESPONSE: matched pending request '%s'", name.c_str());
-        } else {
-            RCLCPP_DEBUG(node_->get_logger(),
-                         "RESPONSE: no pending request for '%s', dropping", name.c_str());
         }
-
-        // Forward to ROS as string on a response topic
-        // (ROS-side consumers can listen on /ai/response)
-    } catch (...) {
-        RCLCPP_WARN(node_->get_logger(),
-                    "RESPONSE: failed to parse body, dropping");
     }
-}
 
-void HabilisDispatcher::handle_training_status(const msgpack::object& /*body*/) {
-    // AI is querying training status. Forward to ROS and relay response.
-    // For now, send a placeholder response
+    // Broadcast RESPONSE to all PUB subscribers (Frontend)
     msgpack::sbuffer buf;
     msgpack::packer<msgpack::sbuffer> pk(buf);
-    pk.pack_map(1);
-    pk.pack("msg");
-    pk.pack_map(2);
-    pk.pack("name");
-    pk.pack("ResTrainingStatus");
-    pk.pack("value");
-    pk.pack_map(3);
-    pk.pack("is_running");
-    pk.pack(0);  // IDLE
-    pk.pack("current_step");
-    pk.pack(0);
-    pk.pack("error");
-    pk.pack("");
+    pk.pack(body);
 
     send_to_ai(HabilisMsgType::RESPONSE, buf);
-    RCLCPP_DEBUG(node_->get_logger(), "TRAINING_STATUS: sent placeholder response");
+    RCLCPP_DEBUG(node_->get_logger(),
+                 "RESPONSE: forwarded '%s' to subscribers",
+                 name.empty() ? "(unknown)" : name.c_str());
 }
 
-void HabilisDispatcher::handle_inference_status(const msgpack::object& /*body*/) {
-    // AI is querying inference status
+void HabilisDispatcher::handle_training_status(const msgpack::object& body) {
+    // Forward TRAINING_STATUS query to AI Manager for real status.
+    // AI Manager will respond with RESPONSE {msg: {name: "ResTrainingStatus", value: {...}}}.
     msgpack::sbuffer buf;
     msgpack::packer<msgpack::sbuffer> pk(buf);
-    pk.pack_map(1);
-    pk.pack("msg");
-    pk.pack_map(2);
-    pk.pack("name");
-    pk.pack("ResInferenceStatus");
-    pk.pack("value");
-    pk.pack_map(2);
-    pk.pack("phase");
-    pk.pack(inference_active_.load());
-    pk.pack("error");
-    pk.pack("");
+    pk.pack(body);
 
-    send_to_ai(HabilisMsgType::RESPONSE, buf);
-    RCLCPP_DEBUG(node_->get_logger(), "INFERENCE_STATUS: sent status (active=%d)",
-                 inference_active_.load());
+    send_to_ai(HabilisMsgType::TRAINING_STATUS, buf);
+    RCLCPP_DEBUG(node_->get_logger(), "TRAINING_STATUS: forwarded to AI Manager");
+}
+
+void HabilisDispatcher::handle_inference_status(const msgpack::object& body) {
+    // Forward INFERENCE_STATUS query to AI Manager for real status.
+    // AI Manager will respond with RESPONSE {msg: {name: "ResInferenceStatus", value: {...}}}.
+    msgpack::sbuffer buf;
+    msgpack::packer<msgpack::sbuffer> pk(buf);
+    pk.pack(body);
+
+    send_to_ai(HabilisMsgType::INFERENCE_STATUS, buf);
+    RCLCPP_DEBUG(node_->get_logger(), "INFERENCE_STATUS: forwarded to AI Manager");
 }
 
 // --- Helpers ---
