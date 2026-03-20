@@ -60,7 +60,8 @@ public:
 
     using DisconnectCallback = std::function<void(uint64_t session_id)>;
 
-    ZmqServer() = default;
+    // Accepts shared context (owned externally, e.g., by ZmqBridgeNode)
+    explicit ZmqServer(zmq::context_t& ctx);
     ~ZmqServer();
 
     // Non-copyable
@@ -87,7 +88,7 @@ private:
     void reap_expired_sessions();
     uint64_t get_or_create_session(const std::string& identity_bytes);
 
-    zmq::context_t ctx_{1};
+    zmq::context_t& ctx_;
     std::atomic<bool> running_{false};
     MessageCallback on_message_;
     DisconnectCallback on_disconnect_;

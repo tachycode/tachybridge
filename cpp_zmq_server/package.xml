@@ -13,6 +13,9 @@
   <depend>rclcpp_lifecycle</depend>
   <depend>lifecycle_msgs</depend>
   <depend>cpp_rosbridge_core</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>trajectory_msgs</depend>
   <depend>launch_ros</depend>
 
   <build_depend>boost</build_depend>

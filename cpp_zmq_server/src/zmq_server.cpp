@@ -80,14 +80,17 @@ bool ZmqSession::is_expired(std::chrono::seconds timeout) const {
 
 std::atomic<uint64_t> ZmqServer::next_session_id_{1};
 
+ZmqServer::ZmqServer(zmq::context_t& ctx)
+    : ctx_(ctx) {}
+
 ZmqServer::~ZmqServer() {
     stop();
 }
 
 void ZmqServer::stop() {
     running_ = false;
-    // Context shutdown will unblock zmq_poll
-    ctx_.shutdown();
+    // Note: context is shared — caller (ZmqBridgeNode) manages shutdown.
+    // The running_ flag + poll timeout will cause poll_loop to exit.
 }
 
 void ZmqServer::run(const std::string& address, uint16_t port,
