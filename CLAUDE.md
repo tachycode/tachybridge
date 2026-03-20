@@ -7,7 +7,7 @@
 export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v miniconda | tr '\n' ':')
 source /opt/ros/jazzy/setup.bash
 export RMW_IMPLEMENTATION=rmw_zenoh_cpp
-colcon build --packages-up-to cpp_rosbridge_tests \
+colcon build --packages-up-to test \
   --cmake-args -DCMAKE_BUILD_TYPE=Release \
   -Dnlohmann_json_DIR=/home/weed/miniconda3/share/cmake/nlohmann_json
 ```
