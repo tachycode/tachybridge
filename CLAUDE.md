@@ -64,10 +64,10 @@ These rules prevent recurrence of critical performance issues found in the initi
 
 ## Branching Strategy
 
-- **`dev`**: Development branch with full documentation (`docs/`)
-- **`main`**: Production branch — `docs/` is excluded
-- **Merge**: Use `./scripts/merge-dev-to-main.sh` to merge dev → main (auto-excludes docs)
+- **`dev`**: Development branch with full logs (`logs/` — troubleshooting, devlogs, TSGs)
+- **`main`**: Production branch — `logs/` is excluded, `docs/` contains usage guides only
+- **Merge**: Use `./scripts/merge-dev-to-main.sh` to merge dev → main (auto-excludes logs)
 
 ## Troubleshooting
 
-See [docs/troubleshooting/README.md](docs/troubleshooting/README.md) for resolved issues and patterns (available on `dev` branch).
+See [logs/troubleshooting/README.md](logs/troubleshooting/README.md) for resolved issues and patterns (available on `dev` branch).

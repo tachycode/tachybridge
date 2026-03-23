@@ -1,2 +1,2 @@
-# Keep main's version of docs during merge (never pull docs from dev)
-docs/** merge=ours
+# Keep main's version of logs during merge (never pull logs from dev)
+logs/** merge=ours
