@@ -6,10 +6,18 @@
 # From workspace root (habilis_communicator/)
 export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v miniconda | tr '\n' ':')
 source /opt/ros/jazzy/setup.bash
+export RMW_IMPLEMENTATION=rmw_zenoh_cpp
 colcon build --packages-up-to cpp_rosbridge_tests \
   --cmake-args -DCMAKE_BUILD_TYPE=Release \
   -Dnlohmann_json_DIR=/home/weed/miniconda3/share/cmake/nlohmann_json
 ```
+
+> **Note**: Default middleware is Zenoh DDS (`rmw_zenoh_cpp`). To switch to Cyclone DDS at launch:
+> ```bash
+> ros2 launch cpp_rosbridge_server rosbridge_websocket_launch.py rmw:=rmw_cyclonedds_cpp
+> ```
+> Ensure the desired middleware is installed:
+> `sudo apt install ros-jazzy-rmw-zenoh-cpp ros-jazzy-rmw-cyclonedds-cpp`
 
 ## Performance Rules (TSG-001)
 
