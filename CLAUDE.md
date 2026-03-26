@@ -6,10 +6,13 @@
 # From workspace root (habilis_communicator/)
 export PATH=$(echo "$PATH" | tr ':' '\n' | grep -v miniconda | tr '\n' ':')
 source /opt/ros/jazzy/setup.bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
 colcon build --packages-up-to cpp_rosbridge_tests \
   --cmake-args -DCMAKE_BUILD_TYPE=Release \
   -Dnlohmann_json_DIR=/home/weed/miniconda3/share/cmake/nlohmann_json
 ```
+
+> **Note**: Default middleware is Cyclone DDS (`rmw_cyclonedds_cpp`). See [docs/dds-middleware-guide.md](docs/dds-middleware-guide.md) for details.
 
 ## Performance Rules (TSG-001)
 
@@ -56,10 +59,10 @@ These rules prevent recurrence of critical performance issues found in the initi
 
 ## Branching Strategy
 
-- **`dev`**: Development branch with full documentation (`docs/`)
-- **`main`**: Production branch — `docs/` is excluded
-- **Merge**: Use `./scripts/merge-dev-to-main.sh` to merge dev → main (auto-excludes docs)
+- **`dev`**: Development branch with full logs (`logs/` — troubleshooting, devlogs, TSGs)
+- **`main`**: Production branch — `logs/` is excluded, `docs/` contains usage guides only
+- **Merge**: Use `./scripts/merge-dev-to-main.sh` to merge dev → main (auto-excludes logs)
 
 ## Troubleshooting
 
-See [docs/troubleshooting/README.md](docs/troubleshooting/README.md) for resolved issues and patterns (available on `dev` branch).
+See [logs/troubleshooting/README.md](logs/troubleshooting/README.md) for resolved issues and patterns (available on `dev` branch).
