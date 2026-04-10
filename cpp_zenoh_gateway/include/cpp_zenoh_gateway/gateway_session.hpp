@@ -99,6 +99,7 @@ private:
     std::mutex lanes_mutex_;
 
     std::atomic<bool> alive_{true};
+    std::once_flag disconnect_once_;
     OnControl on_control_;
     OnDisconnect on_disconnect_;
 };

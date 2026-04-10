@@ -43,7 +43,9 @@ inline std::vector<uint8_t> encode_data_frame(
     frame[3] = static_cast<uint8_t>((ts_offset_ms >> 16) & 0xFF);
     frame[4] = static_cast<uint8_t>((ts_offset_ms >> 8) & 0xFF);
     frame[5] = static_cast<uint8_t>(ts_offset_ms & 0xFF);
-    std::memcpy(frame.data() + kDataFrameHeaderSize, payload, payload_size);
+    if (payload_size > 0) {
+        std::memcpy(frame.data() + kDataFrameHeaderSize, payload, payload_size);
+    }
     return frame;
 }
 

@@ -16,6 +16,7 @@ GatewayServer::GatewayServer(const ServerConfig& config)
         topic_by_id_[tc.topic_id] = tc;
         hubs_[tc.topic_id] = std::make_shared<FanoutHub>();
     }
+    start_time_ = std::chrono::steady_clock::now();
 }
 
 GatewayServer::~GatewayServer() { stop(); }
@@ -48,9 +49,9 @@ void GatewayServer::run() {
 }
 
 void GatewayServer::stop() {
-    ioc_.stop();
-    zenoh_subs_.clear();
-    zenoh_session_.reset();
+    zenoh_subs_.clear();       // stop Zenoh callbacks first
+    zenoh_session_.reset();    // then destroy session
+    ioc_.stop();               // then stop Asio
 }
 
 void GatewayServer::start_accept() {
@@ -197,11 +198,10 @@ void GatewayServer::on_zenoh_sample(
     auto payload = sample.get_payload();
     auto bytes_vec = payload.as_vector();
 
-    static auto start_time = std::chrono::steady_clock::now();
     auto now = std::chrono::steady_clock::now();
     uint32_t ts_offset = static_cast<uint32_t>(
         std::chrono::duration_cast<std::chrono::milliseconds>(
-            now - start_time).count());
+            now - start_time_).count());
 
     auto wire = encode_data_frame(
         topic.stream_type, topic.topic_id, ts_offset,
@@ -223,11 +223,14 @@ void GatewayServer::on_session_disconnect(uint64_t session_id) {
     for (auto& [_, hub] : hubs_) {
         hub->remove_client(session_id);
     }
-    std::unique_lock lock(sessions_mutex_);
-    sessions_.erase(session_id);
-
+    size_t remaining;
+    {
+        std::unique_lock lock(sessions_mutex_);
+        sessions_.erase(session_id);
+        remaining = sessions_.size();
+    }
     std::cout << "[gateway] Session " << session_id
-              << " disconnected. Active: " << sessions_.size() << std::endl;
+              << " disconnected. Active: " << remaining << std::endl;
 }
 
 void GatewayServer::drain_tick() {

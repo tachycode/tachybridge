@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <shared_mutex>
@@ -80,6 +81,8 @@ private:
 
     std::unordered_map<std::string, TopicConfig> topic_by_name_;
     std::unordered_map<uint8_t, TopicConfig> topic_by_id_;
+
+    std::chrono::steady_clock::time_point start_time_;
 };
 
 }  // namespace zenoh_gateway

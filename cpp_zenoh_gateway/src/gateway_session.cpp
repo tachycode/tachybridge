@@ -99,20 +99,34 @@ GatewaySession::GatewaySession(uint64_t id) : id_(id) {}
 
 void GatewaySession::set_control_transport(std::shared_ptr<WsTransport> t) {
     control_ = std::move(t);
-    control_->set_on_message([this](const std::string& msg, bool /*is_binary*/) {
-        if (on_control_) on_control_(id_, msg);
+    auto weak_self = weak_from_this();
+    auto id = id_;
+    control_->set_on_message([weak_self, id](const std::string& msg, bool /*is_binary*/) {
+        if (auto self = weak_self.lock()) {
+            if (self->on_control_) self->on_control_(id, msg);
+        }
     });
-    control_->set_on_close([this]() {
-        alive_ = false;
-        if (on_disconnect_) on_disconnect_(id_);
+    control_->set_on_close([weak_self, id]() {
+        if (auto self = weak_self.lock()) {
+            std::call_once(self->disconnect_once_, [&self, id]() {
+                self->alive_ = false;
+                if (self->on_disconnect_) self->on_disconnect_(id);
+            });
+        }
     });
 }
 
 void GatewaySession::set_image_transport(std::shared_ptr<WsTransport> t) {
     image_ = std::move(t);
-    image_->set_on_close([this]() {
-        alive_ = false;
-        if (on_disconnect_) on_disconnect_(id_);
+    auto weak_self = weak_from_this();
+    auto id = id_;
+    image_->set_on_close([weak_self, id]() {
+        if (auto self = weak_self.lock()) {
+            std::call_once(self->disconnect_once_, [&self, id]() {
+                self->alive_ = false;
+                if (self->on_disconnect_) self->on_disconnect_(id);
+            });
+        }
     });
 }
 
@@ -148,12 +162,13 @@ void GatewaySession::drain_lanes() {
         auto frame = lane->pop();
         if (!frame.has_value()) continue;
 
+        // Zero-copy: share the buffer pointer, avoid per-client allocation
+        auto wire_bytes = frame->bytes;
+        std::vector<uint8_t> ref(wire_bytes->begin(), wire_bytes->end());
         if (frame->stream_type == StreamType::IMAGE && image_) {
-            image_->send_binary(std::vector<uint8_t>(
-                frame->bytes->begin(), frame->bytes->end()));
+            image_->send_binary(std::move(ref));
         } else if (control_) {
-            control_->send_binary(std::vector<uint8_t>(
-                frame->bytes->begin(), frame->bytes->end()));
+            control_->send_binary(std::move(ref));
         }
     }
 }
