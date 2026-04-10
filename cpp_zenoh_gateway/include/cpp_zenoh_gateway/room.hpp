@@ -6,6 +6,7 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <sys/types.h>
 #include <unordered_map>
 #include <vector>
 
@@ -41,6 +42,12 @@ public:
     size_t hub_count() const;
     const std::vector<TopicConfig>& topics() const { return topics_; }
 
+    // Process management
+    void spawn_reader(const std::string& mcap_path, const std::string& reader_executable);
+    void kill_reader();
+    bool has_reader() const { return reader_pid_ > 0; }
+    pid_t reader_pid() const { return reader_pid_; }
+
 private:
     std::string id_;
     std::vector<TopicConfig> topics_;
@@ -51,6 +58,8 @@ private:
 
     mutable std::mutex clients_mutex_;
     std::set<uint64_t> clients_;
+
+    pid_t reader_pid_ = -1;
 };
 
 }  // namespace zenoh_gateway

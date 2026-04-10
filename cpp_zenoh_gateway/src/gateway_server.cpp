@@ -174,6 +174,31 @@ void GatewayServer::handle_control(uint64_t session_id, const std::string& messa
             handle_subscribe(session_id, msg);
         } else if (op == "unsubscribe") {
             handle_unsubscribe(session_id, msg);
+        } else if (op == "create_room") {
+            auto file = msg.value("file", "");
+            auto room_id = msg.value("room_id", "");
+            if (file.empty() || room_id.empty()) return;
+
+            auto room = get_or_create_room(room_id);
+            if (!room->has_reader()) {
+                room->spawn_reader(file, config_.reader_executable);
+            }
+
+            // Find session and respond
+            std::shared_ptr<GatewaySession> session;
+            {
+                std::shared_lock lock(sessions_mutex_);
+                auto sit = sessions_.find(session_id);
+                if (sit != sessions_.end()) session = sit->second;
+            }
+            if (session) {
+                nlohmann::json resp = {
+                    {"op", "room_created"},
+                    {"room_id", room_id},
+                    {"file", file}
+                };
+                session->send_control(resp.dump());
+            }
         }
     } catch (const std::exception& e) {
         std::cerr << "[gateway] Control parse error: " << e.what() << std::endl;
@@ -344,6 +369,7 @@ void GatewayServer::check_room_cleanup(const std::string& room_id) {
     std::unique_lock lock(rooms_mutex_);
     auto it = rooms_.find(room_id);
     if (it != rooms_.end() && it->second->is_empty()) {
+        it->second->kill_reader();
         rooms_.erase(it);
         std::cout << "[gateway] Room " << room_id << " destroyed (empty)" << std::endl;
     }

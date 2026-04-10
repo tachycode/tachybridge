@@ -14,6 +14,7 @@ int main(int argc, char* argv[]) {
             config.port = j.value("port", 9090);
             config.io_threads = j.value("io_threads", 4);
             config.drain_interval_ms = j.value("drain_interval_ms", 5);
+            config.reader_executable = j.value("reader_executable", "mcap_reader_node");
             for (auto& t : j["topics"]) {
                 zenoh_gateway::TopicConfig tc;
                 tc.zenoh_key_expr = t["zenoh_key_expr"];

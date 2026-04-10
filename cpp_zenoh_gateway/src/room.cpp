@@ -1,5 +1,10 @@
 #include "cpp_zenoh_gateway/room.hpp"
 
+#include <csignal>
+#include <iostream>
+#include <sys/wait.h>
+#include <unistd.h>
+
 namespace zenoh_gateway {
 
 Room::Room(const std::string& id, const std::vector<TopicConfig>& topics)
@@ -83,6 +88,34 @@ bool Room::has_hub(uint8_t topic_id) const {
 
 size_t Room::hub_count() const {
     return hubs_.size();
+}
+
+void Room::spawn_reader(const std::string& mcap_path, const std::string& reader_executable) {
+    if (reader_pid_ > 0) return;  // already running
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        // Child process
+        execl(reader_executable.c_str(), "mcap_reader_node",
+              mcap_path.c_str(), id_.c_str(), nullptr);
+        // execl only returns on error
+        _exit(1);
+    } else if (pid > 0) {
+        reader_pid_ = pid;
+        std::cout << "[room " << id_ << "] Spawned mcap_reader pid=" << pid
+                  << " file=" << mcap_path << std::endl;
+    } else {
+        std::cerr << "[room " << id_ << "] Failed to fork mcap_reader" << std::endl;
+    }
+}
+
+void Room::kill_reader() {
+    if (reader_pid_ <= 0) return;
+    kill(reader_pid_, SIGTERM);
+    int status;
+    waitpid(reader_pid_, &status, WNOHANG);
+    std::cout << "[room " << id_ << "] Killed mcap_reader pid=" << reader_pid_ << std::endl;
+    reader_pid_ = -1;
 }
 
 }  // namespace zenoh_gateway

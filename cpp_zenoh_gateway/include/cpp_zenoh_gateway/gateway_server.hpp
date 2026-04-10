@@ -32,6 +32,7 @@ struct ServerConfig {
     int drain_interval_ms = 5;
     std::vector<TopicConfig> topics;
     std::string zenoh_config_path;
+    std::string reader_executable = "mcap_reader_node";
 };
 
 class GatewayServer {
