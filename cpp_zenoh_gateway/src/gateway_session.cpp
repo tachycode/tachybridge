@@ -184,6 +184,24 @@ void GatewaySession::drain_lanes() {
             control_->send_binary(std::move(ref));
         }
     }
+
+    // Quality check every ~1s
+    drain_cycle_++;
+    if (drain_cycle_ >= kQualityCheckInterval) {
+        drain_cycle_ = 0;
+        for (auto& [topic_id, lane] : snapshot) {
+            size_t drops = lane->drops_since_last_check();
+            if (drops > 0 && control_) {
+                nlohmann::json hint = {
+                    {"op", "quality_hint"},
+                    {"topic_id", topic_id},
+                    {"drops", drops},
+                    {"fps_actual", -1}
+                };
+                control_->send_text(hint.dump());
+            }
+        }
+    }
 }
 
 bool GatewaySession::is_alive() const { return alive_; }

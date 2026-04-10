@@ -55,6 +55,31 @@ TEST(StreamLane, EmptyPopReturnsNullopt) {
     EXPECT_TRUE(lane.empty());
 }
 
+TEST(StreamLane, TracksDropCount) {
+    StreamLane lane(BackpressurePolicy::DROP_OLDEST, 2, 1024*1024);
+
+    // Fill beyond capacity
+    lane.push(make_frame(0, 1));
+    lane.push(make_frame(0, 2));
+    lane.push(make_frame(0, 3));  // drops frame 1
+    lane.push(make_frame(0, 4));  // drops frame 2
+
+    EXPECT_EQ(lane.total_drops(), 2u);
+    EXPECT_EQ(lane.drops_since_last_check(), 2u);
+    // Second call returns 0 (reset)
+    EXPECT_EQ(lane.drops_since_last_check(), 0u);
+}
+
+TEST(StreamLane, LatestOnlyCountsDrops) {
+    StreamLane lane(BackpressurePolicy::LATEST_ONLY, 1, 1024*1024);
+
+    lane.push(make_frame(0, 1));
+    lane.push(make_frame(0, 2));  // drops frame 1
+    lane.push(make_frame(0, 3));  // drops frame 2
+
+    EXPECT_EQ(lane.total_drops(), 2u);
+}
+
 TEST(StreamLane, ThreadSafety) {
     StreamLane lane(BackpressurePolicy::DROP_OLDEST, 64, 1024*1024);
 

@@ -109,6 +109,9 @@ private:
     std::once_flag disconnect_once_;
     OnControl on_control_;
     OnDisconnect on_disconnect_;
+
+    uint32_t drain_cycle_ = 0;
+    static constexpr uint32_t kQualityCheckInterval = 200;  // ~1s at 5ms drain
 };
 
 }  // namespace zenoh_gateway

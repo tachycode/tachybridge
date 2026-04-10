@@ -25,6 +25,10 @@ public:
     size_t byte_usage() const;
     bool empty() const;
 
+    // Drop statistics (reset after read)
+    size_t drops_since_last_check();
+    size_t total_drops() const;
+
 private:
     void evict_locked();
 
@@ -35,6 +39,9 @@ private:
 
     std::deque<SharedFrame> queue_;
     mutable std::mutex mutex_;
+
+    size_t drops_ = 0;
+    size_t total_drops_ = 0;
 };
 
 }  // namespace zenoh_gateway

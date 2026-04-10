@@ -11,6 +11,10 @@ void StreamLane::push(SharedFrame frame) {
     size_t frame_bytes = frame.bytes ? frame.bytes->size() : 0;
 
     if (policy_ == BackpressurePolicy::LATEST_ONLY) {
+        if (!queue_.empty()) {
+            drops_++;
+            total_drops_++;
+        }
         current_bytes_ = 0;
         queue_.clear();
         queue_.push_back(std::move(frame));
@@ -56,7 +60,21 @@ void StreamLane::evict_locked() {
         size_t front_bytes = queue_.front().bytes ? queue_.front().bytes->size() : 0;
         queue_.pop_front();
         current_bytes_ -= front_bytes;
+        drops_++;
+        total_drops_++;
     }
+}
+
+size_t StreamLane::drops_since_last_check() {
+    std::lock_guard<std::mutex> lock(mutex_);
+    size_t d = drops_;
+    drops_ = 0;
+    return d;
+}
+
+size_t StreamLane::total_drops() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return total_drops_;
 }
 
 }  // namespace zenoh_gateway
