@@ -1,0 +1,16 @@
+{
+  "name": "tachybridge-js",
+  "version": "0.1.0",
+  "description": "Browser client SDK for TachyBridge Zenoh-WS Gateway",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "license": "Apache-2.0"
+}
