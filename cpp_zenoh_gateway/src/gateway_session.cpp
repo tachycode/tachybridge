@@ -8,20 +8,33 @@ namespace zenoh_gateway {
 WsTransport::WsTransport(tcp::socket&& socket)
     : ws_(std::move(socket)) {}
 
-void WsTransport::run(const std::string& expected_path) {
-    expected_path_ = expected_path;
+void WsTransport::run(const std::string& /*expected_path*/) {
+    // Read the HTTP upgrade request to extract the target path
+    boost::beast::http::async_read(ws_.next_layer(), buffer_, upgrade_req_,
+        beast::bind_front_handler(&WsTransport::on_http_read, shared_from_this()));
+}
+
+void WsTransport::on_http_read(beast::error_code ec, std::size_t /*bytes*/) {
+    if (ec) { if (on_close_) on_close_(); return; }
+
+    path_ = std::string(upgrade_req_.target());
+
+    if (on_path_) on_path_(path_);
+
     ws_.set_option(websocket::stream_base::timeout::suggested(
         beast::role_type::server));
     ws_.set_option(websocket::stream_base::decorator(
         [](websocket::response_type& res) {
             res.set(boost::beast::http::field::server, "zenoh-ws-gateway");
         }));
-    ws_.async_accept(
+
+    ws_.async_accept(upgrade_req_,
         beast::bind_front_handler(&WsTransport::on_accept, shared_from_this()));
 }
 
 void WsTransport::set_on_message(OnMessage cb) { on_message_ = std::move(cb); }
 void WsTransport::set_on_close(OnClose cb) { on_close_ = std::move(cb); }
+void WsTransport::set_on_path(OnPath cb) { on_path_ = std::move(cb); }
 
 void WsTransport::on_accept(beast::error_code ec) {
     if (ec) { if (on_close_) on_close_(); return; }

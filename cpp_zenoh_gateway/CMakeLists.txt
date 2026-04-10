@@ -21,6 +21,7 @@ add_library(zenoh_gateway_lib
   src/fanout_hub.cpp
   src/gateway_session.cpp
   src/gateway_server.cpp
+  src/room.cpp
 )
 
 target_include_directories(zenoh_gateway_lib PUBLIC
@@ -54,6 +55,9 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_integration_smoke test/test_integration_smoke.cpp)
   target_link_libraries(test_integration_smoke zenoh_gateway_lib)
+
+  ament_add_gtest(test_room test/test_room.cpp)
+  target_link_libraries(test_room zenoh_gateway_lib)
 endif()
 
 # Install

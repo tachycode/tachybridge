@@ -15,8 +15,8 @@
 #include <nlohmann/json.hpp>
 #include <zenoh.hxx>
 
-#include "cpp_zenoh_gateway/fanout_hub.hpp"
 #include "cpp_zenoh_gateway/gateway_session.hpp"
+#include "cpp_zenoh_gateway/room.hpp"
 #include "cpp_zenoh_gateway/wire_format.hpp"
 
 namespace zenoh_gateway {
@@ -24,13 +24,6 @@ namespace zenoh_gateway {
 namespace net = boost::asio;
 namespace beast = boost::beast;
 using tcp = boost::asio::ip::tcp;
-
-struct TopicConfig {
-    std::string zenoh_key_expr;
-    std::string display_name;
-    uint8_t topic_id;
-    StreamType stream_type;
-};
 
 struct ServerConfig {
     std::string address = "0.0.0.0";
@@ -59,10 +52,15 @@ private:
     void handle_unsubscribe(uint64_t session_id, const nlohmann::json& msg);
 
     void setup_zenoh();
-    void on_zenoh_sample(const TopicConfig& topic, zenoh::Sample& sample);
+    void setup_room_zenoh(std::shared_ptr<Room> room);
 
     void on_session_disconnect(uint64_t session_id);
     void drain_tick();
+
+    static bool parse_path(const std::string& path,
+                           std::string& room_id, bool& is_image);
+    std::shared_ptr<Room> get_or_create_room(const std::string& room_id);
+    void check_room_cleanup(const std::string& room_id);
 
     ServerConfig config_;
 
@@ -77,10 +75,15 @@ private:
     std::shared_mutex sessions_mutex_;
     std::atomic<uint64_t> next_session_id_{1};
 
-    std::unordered_map<uint8_t, std::shared_ptr<FanoutHub>> hubs_;
+    // Session-to-room mapping (protected by sessions_mutex_)
+    std::unordered_map<uint64_t, std::string> session_rooms_;
 
-    std::unordered_map<std::string, TopicConfig> topic_by_name_;
-    std::unordered_map<uint8_t, TopicConfig> topic_by_id_;
+    // Room management
+    std::unordered_map<std::string, std::shared_ptr<Room>> rooms_;
+    std::shared_mutex rooms_mutex_;
+
+    // Topic template for creating rooms
+    std::vector<TopicConfig> topic_template_;
 
     std::chrono::steady_clock::time_point start_time_;
 };

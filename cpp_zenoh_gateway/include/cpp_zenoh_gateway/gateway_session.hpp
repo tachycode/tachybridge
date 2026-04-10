@@ -33,10 +33,14 @@ public:
     void send_binary(std::vector<uint8_t> data);
     void close();
 
+    const std::string& path() const { return path_; }
+
     using OnMessage = std::function<void(const std::string&, bool is_binary)>;
     using OnClose = std::function<void()>;
+    using OnPath = std::function<void(const std::string& path)>;
     void set_on_message(OnMessage cb);
     void set_on_close(OnClose cb);
+    void set_on_path(OnPath cb);
 
 private:
     struct QueueItem {
@@ -47,6 +51,7 @@ private:
 
     static constexpr size_t kMaxControlQueueSize = 256;
 
+    void on_http_read(beast::error_code ec, std::size_t bytes);
     void on_accept(beast::error_code ec);
     void do_read();
     void on_read(beast::error_code ec, std::size_t bytes);
@@ -55,11 +60,13 @@ private:
 
     websocket::stream<beast::tcp_stream> ws_;
     beast::flat_buffer buffer_;
+    boost::beast::http::request<boost::beast::http::empty_body> upgrade_req_;
     std::deque<QueueItem> write_queue_;
     bool writing_ = false;
     OnMessage on_message_;
     OnClose on_close_;
-    std::string expected_path_;
+    OnPath on_path_;
+    std::string path_;
 };
 
 // Client session — owns two transports + StreamLanes per topic

@@ -49,6 +49,13 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_cdr_extractor test/test_cdr_extractor.cpp)
   target_link_libraries(test_cdr_extractor mcap_reader_lib)
+
+  ament_add_gtest(test_seek test/test_seek.cpp)
+  target_include_directories(test_seek PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    /usr/local/include
+  )
+  target_link_libraries(test_seek Threads::Threads PkgConfig::LZ4 PkgConfig::ZSTD)
 endif()
 
 install(TARGETS mcap_reader_node DESTINATION lib/${PROJECT_NAME})
