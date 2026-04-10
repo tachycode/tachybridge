@@ -11,14 +11,17 @@ PlaybackController::PlaybackController(
     : publisher_(std::move(publisher))
     , queryable_(session->declare_queryable(
           zenoh::KeyExpr("room/" + room_id + "/control"),
-          [this](const zenoh::Query& query) { handle_query(query); }))
+          [this](zenoh::Query& query) { handle_query(query); },
+          []() {}  // on_drop
+      ))
 {
 }
 
-void PlaybackController::handle_query(const zenoh::Query& query) {
+void PlaybackController::handle_query(zenoh::Query& query) {
     try {
-        auto payload = query.get_payload();
-        auto body = nlohmann::json::parse(payload.as_string());
+        auto opt_payload = query.get_payload();
+        if (!opt_payload.has_value()) return;
+        auto body = nlohmann::json::parse(opt_payload->get().as_string());
         auto action = body.value("action", "");
 
         nlohmann::json response;
@@ -48,12 +51,12 @@ void PlaybackController::handle_query(const zenoh::Query& query) {
         }
 
         auto reply_str = response.dump();
-        query.reply(query.get_keyexpr(), zenoh::Bytes(reply_str));
+        query.reply(query.get_keyexpr(), zenoh::Bytes(std::move(reply_str)));
 
     } catch (const std::exception& e) {
         std::cerr << "[playback-ctrl] Error: " << e.what() << std::endl;
-        auto err = nlohmann::json{{"error", e.what()}}.dump();
-        query.reply(query.get_keyexpr(), zenoh::Bytes(err));
+        std::string err = nlohmann::json{{"error", e.what()}}.dump();
+        query.reply(query.get_keyexpr(), zenoh::Bytes(std::move(err)));
     }
 }
 

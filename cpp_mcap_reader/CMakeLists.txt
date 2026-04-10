@@ -11,6 +11,7 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(Threads REQUIRED)
 find_package(nlohmann_json 3.7.0 REQUIRED)
+find_package(zenohc REQUIRED)
 find_package(zenohcxx REQUIRED)
 
 # mcap is header-only (installed to /usr/local/include/mcap)
@@ -34,7 +35,7 @@ target_include_directories(mcap_reader_lib PUBLIC
 target_link_libraries(mcap_reader_lib
   Threads::Threads
   nlohmann_json::nlohmann_json
-  zenohcxx::zenohcxx
+  zenohcxx::zenohc
   PkgConfig::LZ4
   PkgConfig::ZSTD
 )

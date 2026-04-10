@@ -12,6 +12,7 @@ find_package(ament_cmake REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Threads REQUIRED)
 find_package(nlohmann_json 3.7.0 REQUIRED)
+find_package(zenohc REQUIRED)
 find_package(zenohcxx REQUIRED)
 
 # Gateway library
@@ -31,7 +32,7 @@ target_link_libraries(zenoh_gateway_lib
   Boost::system
   Threads::Threads
   nlohmann_json::nlohmann_json
-  zenohcxx::zenohcxx
+  zenohcxx::zenohc
 )
 
 # Executable

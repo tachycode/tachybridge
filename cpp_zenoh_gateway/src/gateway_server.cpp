@@ -182,9 +182,11 @@ void GatewayServer::setup_zenoh() {
     for (const auto& tc : config_.topics) {
         auto sub = zenoh_session_->declare_subscriber(
             zenoh::KeyExpr(tc.zenoh_key_expr),
-            [this, tc](const zenoh::Sample& sample) {
+            [this, tc](zenoh::Sample& sample) {
                 on_zenoh_sample(tc, sample);
-            });
+            },
+            []() {}  // on_drop
+        );
         zenoh_subs_.push_back(std::move(sub));
     }
 
@@ -193,9 +195,9 @@ void GatewayServer::setup_zenoh() {
 }
 
 void GatewayServer::on_zenoh_sample(
-    const TopicConfig& topic, const zenoh::Sample& sample)
+    const TopicConfig& topic, zenoh::Sample& sample)
 {
-    auto payload = sample.get_payload();
+    const auto& payload = sample.get_payload();
     auto bytes_vec = payload.as_vector();
 
     auto now = std::chrono::steady_clock::now();

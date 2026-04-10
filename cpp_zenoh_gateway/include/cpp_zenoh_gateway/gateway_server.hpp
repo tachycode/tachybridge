@@ -59,7 +59,7 @@ private:
     void handle_unsubscribe(uint64_t session_id, const nlohmann::json& msg);
 
     void setup_zenoh();
-    void on_zenoh_sample(const TopicConfig& topic, const zenoh::Sample& sample);
+    void on_zenoh_sample(const TopicConfig& topic, zenoh::Sample& sample);
 
     void on_session_disconnect(uint64_t session_id);
     void drain_tick();
@@ -71,7 +71,7 @@ private:
     net::steady_timer drain_timer_;
 
     std::unique_ptr<zenoh::Session> zenoh_session_;
-    std::vector<zenoh::Subscriber> zenoh_subs_;
+    std::vector<zenoh::Subscriber<void>> zenoh_subs_;
 
     std::unordered_map<uint64_t, std::shared_ptr<GatewaySession>> sessions_;
     std::shared_mutex sessions_mutex_;

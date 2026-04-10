@@ -1,0 +1,42 @@
+FROM ros:jazzy
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    cmake \
+    pkg-config \
+    libboost-system-dev \
+    nlohmann-json3-dev \
+    liblz4-dev \
+    libzstd-dev \
+    ros-jazzy-ament-cmake-gtest \
+    git \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install latest Rust via rustup (zenoh-c needs edition 2024)
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install mcap headers (header-only)
+RUN git clone --depth 1 https://github.com/foxglove/mcap.git /tmp/mcap \
+    && cp -r /tmp/mcap/cpp/mcap/include/mcap /usr/local/include/ \
+    && rm -rf /tmp/mcap
+
+# Install zenoh-c (Rust library)
+RUN git clone --depth 1 https://github.com/eclipse-zenoh/zenoh-c.git /tmp/zenoh-c \
+    && mkdir /tmp/zenoh-c/build && cd /tmp/zenoh-c/build \
+    && cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
+    && make -j$(nproc) \
+    && make install \
+    && rm -rf /tmp/zenoh-c
+
+# Install zenoh-cpp (C++ bindings, header-only interface)
+RUN git clone --depth 1 https://github.com/eclipse-zenoh/zenoh-cpp.git /tmp/zenoh-cpp \
+    && mkdir /tmp/zenoh-cpp/build && cd /tmp/zenoh-cpp/build \
+    && cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local -DZENOHCXX_ZENOHC=ON \
+    && make install \
+    && rm -rf /tmp/zenoh-cpp
+
+WORKDIR /ws/src/tachybridge

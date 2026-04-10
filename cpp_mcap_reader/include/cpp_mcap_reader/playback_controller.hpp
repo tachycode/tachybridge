@@ -14,10 +14,10 @@ public:
                        const std::string& room_id);
 
 private:
-    void handle_query(const zenoh::Query& query);
+    void handle_query(zenoh::Query& query);
 
     std::shared_ptr<McapPublisher> publisher_;
-    zenoh::Queryable queryable_;
+    zenoh::Queryable<void> queryable_;
 };
 
 }  // namespace mcap_reader

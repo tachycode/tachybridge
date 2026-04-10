@@ -132,7 +132,8 @@ void McapPublisher::publish_image(
     auto it = publishers_.find(mapping.zenoh_key_expr);
     if (it == publishers_.end()) return;
 
-    it->second.put(zenoh::Bytes(img.data_ptr, img.data_size));
+    std::vector<uint8_t> img_vec(img.data_ptr, img.data_ptr + img.data_size);
+    it->second.put(zenoh::Bytes(std::move(img_vec)));
 }
 
 void McapPublisher::publish_pose(
@@ -145,7 +146,9 @@ void McapPublisher::publish_pose(
     auto it = publishers_.find(mapping.zenoh_key_expr);
     if (it == publishers_.end()) return;
 
-    it->second.put(zenoh::Bytes(reinterpret_cast<const uint8_t*>(pose.values), 56));
+    const auto* raw = reinterpret_cast<const uint8_t*>(pose.values);
+    std::vector<uint8_t> pose_vec(raw, raw + 56);
+    it->second.put(zenoh::Bytes(std::move(pose_vec)));
 }
 
 }  // namespace mcap_reader

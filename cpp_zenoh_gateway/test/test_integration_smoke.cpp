@@ -24,21 +24,24 @@ TEST(IntegrationSmoke, ZenohToFanoutHub) {
     // Subscribe with Zenoh
     auto sub = session.declare_subscriber(
         zenoh::KeyExpr("test/cam0"),
-        [&](const zenoh::Sample& sample) {
-            auto payload = sample.get_payload().as_vector();
+        [&](zenoh::Sample& sample) {
+            const auto& payload = sample.get_payload();
+            auto bytes_vec = payload.as_vector();
             auto wire = encode_data_frame(
                 StreamType::IMAGE, 0, 100,
-                payload.data(), payload.size());
+                bytes_vec.data(), bytes_vec.size());
             auto shared = std::make_shared<const std::vector<uint8_t>>(
                 std::move(wire));
             hub->distribute(SharedFrame{StreamType::IMAGE, 0, 100, shared});
             received++;
-        });
+        },
+        []() {}  // on_drop
+    );
 
     // Publish fake JPEG
     std::vector<uint8_t> fake_jpeg = {0xFF, 0xD8, 0xFF, 0xE0};
     session.put(zenoh::KeyExpr("test/cam0"),
-                zenoh::Bytes(fake_jpeg.data(), fake_jpeg.size()));
+                zenoh::Bytes(std::move(fake_jpeg)));
 
     // Wait for delivery
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
