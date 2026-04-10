@@ -58,6 +58,9 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_room test/test_room.cpp)
   target_link_libraries(test_room zenoh_gateway_lib)
+
+  ament_add_gtest(test_e2e_pipeline test/test_e2e_pipeline.cpp)
+  target_link_libraries(test_e2e_pipeline zenoh_gateway_lib)
 endif()
 
 # Install
