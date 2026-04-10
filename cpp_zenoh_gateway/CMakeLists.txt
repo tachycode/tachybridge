@@ -50,6 +50,9 @@ if(BUILD_TESTING)
 
   ament_add_gtest(test_fanout_hub test/test_fanout_hub.cpp)
   target_link_libraries(test_fanout_hub zenoh_gateway_lib)
+
+  ament_add_gtest(test_integration_smoke test/test_integration_smoke.cpp)
+  target_link_libraries(test_integration_smoke zenoh_gateway_lib)
 endif()
 
 # Install
