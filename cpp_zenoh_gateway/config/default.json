@@ -1,0 +1,14 @@
+{
+    "address": "0.0.0.0",
+    "port": 9090,
+    "io_threads": 4,
+    "drain_interval_ms": 5,
+    "topics": [
+        {"zenoh_key_expr": "room/01/cam0",     "display_name": "/cam0",     "topic_id": 0, "type": "image"},
+        {"zenoh_key_expr": "room/01/cam1",     "display_name": "/cam1",     "topic_id": 1, "type": "image"},
+        {"zenoh_key_expr": "room/01/cam2",     "display_name": "/cam2",     "topic_id": 2, "type": "image"},
+        {"zenoh_key_expr": "room/01/ee_pose0", "display_name": "/ee_pose0", "topic_id": 3, "type": "pose"},
+        {"zenoh_key_expr": "room/01/ee_pose1", "display_name": "/ee_pose1", "topic_id": 4, "type": "pose"},
+        {"zenoh_key_expr": "room/01/ee_pose2", "display_name": "/ee_pose2", "topic_id": 5, "type": "pose"}
+    ]
+}
