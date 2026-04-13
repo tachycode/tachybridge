@@ -21,46 +21,14 @@ colcon build --packages-up-to cpp_rosbridge_tests \
 
 ## Performance Rules (TSG-001)
 
-These rules prevent recurrence of critical performance issues found in the initial code review.
+Critical guardrails — detailed rationale in graph (`graphify query "TSG-001"`).
 
-### NEVER block Boost.Asio I/O threads
-
-- **No `std::this_thread::sleep_for()` in any WebSocket handler or callback**
-- **No `wait_for_service()`, `wait_for_action_server()` on I/O threads**
-- Any blocking operation must be offloaded to the work pool via `protocol_->post_work()`
-- Rationale: A single blocked I/O thread freezes all sessions on that thread
-
-### All queues and buffers MUST have size limits
-
-- Every `std::deque`, `std::vector`, or buffer used for message queuing must define a `kMax*Size` constant
-- When the limit is reached, apply backpressure: drop oldest, drop newest, or disconnect the client
-- Rationale: Unbounded queues cause OOM crashes under sustained load from slow clients
-
-### Minimize lock scope — no I/O or CPU-heavy work under locks
-
-- Never call `send_fn()`, `json.dump()`, or any network I/O while holding a mutex/shared_mutex
-- Pattern: copy data under lock → release lock → process/send outside lock
-- Rationale: Lock-held sends cause head-of-line blocking proportional to subscriber count
-
-### Resource allocation must have a matching cleanup path
-
-- Every `subscribe()` must have a corresponding `unsubscribe_all()` on disconnect
-- Every client cache (`clients_`, `bridges_`) should have eviction or cleanup on session end
-- Use `Session::set_on_disconnect()` to wire cleanup callbacks
-- Rationale: Missing cleanup causes zombie subscriptions and memory leaks
-
-### Hot-path logging must use DEBUG level
-
-- `RCLCPP_INFO` is only for lifecycle events (startup, shutdown, first subscription)
-- Per-message, per-call, per-subscription logs must use `RCLCPP_DEBUG`
-- Never log full message payloads — log size only: `"Received message (%zu bytes)"`
-- For periodic status, use `RCLCPP_INFO_THROTTLE` with interval >= 1000ms
-
-### Work pool must be configurable
-
-- Thread pool sizes must be exposed as ROS parameters, never hardcoded
-- Default: `work_pool_threads = 4` (minimum for production)
-- Consider: `std::thread::hardware_concurrency()` as upper bound reference
+- **NEVER** block Boost.Asio I/O threads — no `sleep_for()`, `wait_for_service()` on I/O threads; offload via `post_work()`
+- **MUST** size-limit all queues/buffers — define `kMax*Size`, apply backpressure at limit
+- **NEVER** do I/O or CPU work under locks — copy under lock, release, then send
+- **MUST** pair every resource allocation with cleanup on disconnect (`set_on_disconnect()`)
+- **MUST** use `RCLCPP_DEBUG` for hot-path logs — `RCLCPP_INFO` only for lifecycle events
+- **MUST** expose work pool thread count as ROS parameter (default 4)
 
 ## Branching Strategy
 
@@ -71,3 +39,12 @@ These rules prevent recurrence of critical performance issues found in the initi
 ## Troubleshooting
 
 See [logs/troubleshooting/README.md](logs/troubleshooting/README.md) for resolved issues and patterns (available on `dev` branch).
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current

@@ -30,6 +30,14 @@ if(BUILD_TESTING)
     target_link_libraries(test_cbor_transport nlohmann_json::nlohmann_json)
   endif()
 
+  ament_add_gtest(test_encoding src/test_encoding.cpp)
+  if(TARGET test_encoding)
+    ament_target_dependencies(
+      test_encoding
+      cpp_rosbridge_core
+    )
+  endif()
+
   ament_add_gtest(test_action_capability src/test_action_capability.cpp)
   if(TARGET test_action_capability)
     ament_target_dependencies(
