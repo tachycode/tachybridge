@@ -31,13 +31,6 @@ def generate_launch_description():
             }
         ],
     )
-    
-    habilis_communicator_node = Node(
-        package="habilis_communicator",
-        executable="habilis_communicator",
-        name="habilis_communicator",
-        output="screen",
-    )
 
     nginx_process = ExecuteProcess(
         cmd=["bash", "-lc", "nginx -s stop >/dev/null 2>&1 || true; nginx -t && nginx -g 'daemon off;'"],
@@ -49,7 +42,6 @@ def generate_launch_description():
             rmw_arg,
             set_rmw,
             cpp_rosbridge_node,
-            habilis_communicator_node,
             nginx_process,
         ]
     )
