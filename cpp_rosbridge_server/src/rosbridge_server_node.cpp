@@ -25,6 +25,14 @@ public:
         this->declare_parameter<std::string>("address", "127.0.0.1");
         this->declare_parameter<int>("num_threads", 4);
         this->declare_parameter<int>("work_pool_threads", 4);
+        this->declare_parameter<bool>("resource_proxy.enabled", false);
+        this->declare_parameter<bool>("resource_proxy.prefer_local_packages", true);
+        this->declare_parameter<std::string>("resource_proxy.robot_ip", "");
+        this->declare_parameter<std::string>("resource_proxy.local_base_uri", "/resources");
+        this->declare_parameter<std::string>("resource_proxy.cache_root", "/tmp/tachybridge_resource_cache");
+        this->declare_parameter<std::string>(
+            "resource_proxy.remote_uri_template",
+            "http://{robot_ip}:9090/resources/{package}/{path}");
 
         port_ = static_cast<uint16_t>(this->get_parameter("port").as_int());
         address_ = this->get_parameter("address").as_string();

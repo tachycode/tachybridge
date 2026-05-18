@@ -51,6 +51,15 @@ if(BUILD_TESTING)
     target_link_libraries(test_execute_cli nlohmann_json::nlohmann_json)
   endif()
 
+  ament_add_gtest(test_resource_proxy src/test_resource_proxy.cpp)
+  if(TARGET test_resource_proxy)
+    ament_target_dependencies(
+      test_resource_proxy
+      cpp_rosbridge_core
+    )
+    target_link_libraries(test_resource_proxy nlohmann_json::nlohmann_json)
+  endif()
+
   ament_add_gtest(bench_performance src/bench_performance.cpp)
   if(TARGET bench_performance)
     ament_target_dependencies(

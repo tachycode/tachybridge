@@ -17,6 +17,8 @@
 
 namespace cpp_rosbridge_core {
 
+class ResourceProxy;
+
 // ── Binary sub-protocol ─────────────────────────────────────────────────────
 
 /// Encode a single camera image into the binary frame sub-protocol:
@@ -126,6 +128,7 @@ private:
     };
 
     rclcpp_lifecycle::LifecycleNode* node_;
+    std::unique_ptr<ResourceProxy> resource_proxy_;
     std::unordered_map<std::string, TopicEntry> subscriptions_;
     mutable std::shared_mutex mutex_;
 };

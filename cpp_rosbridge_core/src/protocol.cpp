@@ -1,5 +1,6 @@
 #include "cpp_rosbridge_core/protocol.hpp"
 #include "cpp_rosbridge_core/capabilities.hpp"
+#include "cpp_rosbridge_core/resource_proxy.hpp"
 #include <boost/asio/post.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
@@ -259,7 +260,8 @@ static rclcpp::QoS detect_qos_for_subscription(
 }
 
 SubscriptionManager::SubscriptionManager(rclcpp_lifecycle::LifecycleNode* node)
-    : node_(node) {}
+    : node_(node),
+      resource_proxy_(std::make_unique<ResourceProxy>(node)) {}
 
 void SubscriptionManager::subscribe(const std::string& topic, const std::string& type,
                                      uint64_t session_id, SenderFn sender) {
@@ -290,6 +292,7 @@ void SubscriptionManager::subscribe(const std::string& topic, const std::string&
                 nlohmann::json msg_json;
                 try {
                     msg_json = RosMessageConverter::convert_ros_message_to_json(type, *serialized_msg);
+                    resource_proxy_->maybe_rewrite_message(topic, type, msg_json);
                 } catch (const std::exception& e) {
                     RCLCPP_ERROR(node_->get_logger(),
                                  "Failed to convert message on '%s': %s", topic.c_str(), e.what());

@@ -2,17 +2,22 @@
 
 #include <boost/asio/strand.hpp>
 #include <boost/beast/core.hpp>
+#include <boost/beast/http.hpp>
 #include <boost/beast/websocket.hpp>
 #include <atomic>
 #include <cstdlib>
 #include <deque>
+#include <filesystem>
 #include <functional>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <variant>
 #include <vector>
 
+#include "cpp_rosbridge_core/resource_proxy.hpp"
 #include <rclcpp/logging.hpp>
 
 namespace beast = boost::beast;
@@ -31,6 +36,7 @@ using MessageCallback = std::function<void(
 class Session : public std::enable_shared_from_this<Session> {
     websocket::stream<beast::tcp_stream> ws_;
     beast::flat_buffer buffer_;
+    http::request<http::string_body> req_;
     MessageCallback on_message_cb_;
 
     struct QueueItem {
@@ -102,13 +108,30 @@ public:
 
 private:
     void on_run() {
-        ws_.set_option(websocket::stream_base::timeout::suggested(beast::role_type::server));
-        ws_.set_option(websocket::stream_base::decorator([](websocket::response_type& res) {
-            res.set(http::field::server,
-                std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async");
-        }));
-        ws_.async_accept(
-            beast::bind_front_handler(&Session::on_accept, shared_from_this()));
+        http::async_read(ws_.next_layer(), buffer_, req_,
+            beast::bind_front_handler(&Session::on_request, shared_from_this()));
+    }
+
+    void on_request(beast::error_code ec, std::size_t bytes_transferred) {
+        boost::ignore_unused(bytes_transferred);
+        if (ec) {
+            RCLCPP_ERROR(rclcpp::get_logger("websocket_server"), "request: %s", ec.message().c_str());
+            return;
+        }
+
+        if (websocket::is_upgrade(req_)) {
+            ws_.set_option(websocket::stream_base::timeout::suggested(beast::role_type::server));
+            ws_.set_option(websocket::stream_base::decorator([](websocket::response_type& res) {
+                res.set(http::field::server,
+                    std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async");
+            }));
+            ws_.async_accept(
+                req_,
+                beast::bind_front_handler(&Session::on_accept, shared_from_this()));
+            return;
+        }
+
+        handle_http_request();
     }
 
     void on_accept(beast::error_code ec) {
@@ -191,6 +214,95 @@ private:
 
         write_queue_.pop_front();
         do_write();
+    }
+
+    void handle_http_request() {
+        const auto method = req_.method();
+        if (method != http::verb::get && method != http::verb::head) {
+            auto res = std::make_shared<http::response<http::string_body>>(
+                http::status::method_not_allowed, req_.version());
+            res->set(http::field::server, "tachybridge");
+            res->set(http::field::content_type, "text/plain");
+            res->body() = "Method not allowed\n";
+            res->prepare_payload();
+            return send_http_response(res);
+        }
+
+        const auto resolved = cpp_rosbridge_core::ResourceProxy::resolve_local_resource_path(
+            std::string(req_.target()));
+        if (!resolved.has_value()) {
+            auto res = std::make_shared<http::response<http::string_body>>(
+                http::status::not_found, req_.version());
+            res->set(http::field::server, "tachybridge");
+            res->set(http::field::content_type, "text/plain");
+            res->body() = "Not found\n";
+            res->prepare_payload();
+            return send_http_response(res);
+        }
+
+        beast::error_code ec;
+        http::file_body::value_type file;
+        file.open(resolved->c_str(), beast::file_mode::scan, ec);
+        if (ec) {
+            auto res = std::make_shared<http::response<http::string_body>>(
+                http::status::internal_server_error, req_.version());
+            res->set(http::field::server, "tachybridge");
+            res->set(http::field::content_type, "text/plain");
+            res->body() = "Failed to open file\n";
+            res->prepare_payload();
+            return send_http_response(res);
+        }
+
+        const auto size = file.size();
+        auto res = std::make_shared<http::response<http::file_body>>(
+            std::piecewise_construct,
+            std::make_tuple(std::move(file)),
+            std::make_tuple(http::status::ok, req_.version()));
+        res->set(http::field::server, "tachybridge");
+        res->set(http::field::content_type, mime_type(*resolved));
+        res->content_length(size);
+        res->keep_alive(false);
+        if (method == http::verb::head) {
+            auto head_res = std::make_shared<http::response<http::empty_body>>(
+                http::status::ok, req_.version());
+            head_res->set(http::field::server, "tachybridge");
+            head_res->set(http::field::content_type, mime_type(*resolved));
+            head_res->content_length(size);
+            head_res->keep_alive(false);
+            return send_http_response(head_res);
+        }
+
+        send_http_response(res);
+    }
+
+    template <typename ResponseBody>
+    void send_http_response(std::shared_ptr<http::response<ResponseBody>> res) {
+        auto self = shared_from_this();
+        http::async_write(
+            ws_.next_layer(),
+            *res,
+            [self, res](beast::error_code ec, std::size_t bytes_transferred) {
+                boost::ignore_unused(bytes_transferred);
+                beast::error_code shutdown_ec;
+                self->ws_.next_layer().socket().shutdown(tcp::socket::shutdown_send, shutdown_ec);
+                if (ec) {
+                    RCLCPP_WARN(rclcpp::get_logger("websocket_server"),
+                                "http write: %s",
+                                ec.message().c_str());
+                }
+            });
+    }
+
+    static std::string mime_type(const std::string& path) {
+        const std::string ext = std::filesystem::path(path).extension().string();
+        if (ext == ".stl") return "model/stl";
+        if (ext == ".dae") return "model/vnd.collada+xml";
+        if (ext == ".obj") return "model/obj";
+        if (ext == ".glb") return "model/gltf-binary";
+        if (ext == ".gltf") return "model/gltf+json";
+        if (ext == ".png") return "image/png";
+        if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
+        return "application/octet-stream";
     }
 };
 

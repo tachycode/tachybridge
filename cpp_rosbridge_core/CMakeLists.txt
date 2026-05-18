@@ -10,8 +10,10 @@ find_package(nlohmann_json 3.7.0 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 find_package(rosidl_typesupport_introspection_cpp REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)
 
 # Auto-discover actions from workspace interface packages.
@@ -30,6 +32,7 @@ add_library(
   cpp_rosbridge_core
   src/protocol.cpp
   src/introspection.cpp
+  src/resource_proxy.cpp
   src/capabilities/topic.cpp
   src/capabilities/service.cpp
   src/capabilities/action.cpp
@@ -42,6 +45,7 @@ set(CORE_DEPS
   rclcpp_lifecycle
   rclcpp_action
   rosidl_typesupport_introspection_cpp
+  ament_index_cpp
 )
 if(INTERFACE_ACTION_DEPS)
   list(APPEND CORE_DEPS ${INTERFACE_ACTION_DEPS})
@@ -57,6 +61,7 @@ target_include_directories(cpp_rosbridge_core PUBLIC
 target_link_libraries(cpp_rosbridge_core
   nlohmann_json::nlohmann_json
   Boost::system
+  CURL::libcurl
   Threads::Threads
   ${CMAKE_DL_LIBS}
 )
@@ -87,8 +92,10 @@ set(EXPORT_DEPS
   rclcpp_lifecycle
   rclcpp_action
   rosidl_typesupport_introspection_cpp
+  ament_index_cpp
   nlohmann_json
   Boost
+  CURL
   Threads
 )
 if(INTERFACE_ACTION_DEPS)
