@@ -15,7 +15,7 @@
   <depend>rclcpp_action</depend>
   <depend>ament_index_cpp</depend>
   <depend>rosidl_typesupport_introspection_cpp</depend>
-  <depend>libcurl4-openssl-dev</depend>
+  <depend>libcurl-dev</depend>
 
   <exec_depend>rmw_zenoh_cpp</exec_depend>
   <exec_depend>rmw_cyclonedds_cpp</exec_depend>
