@@ -10,6 +10,7 @@ find_package(nlohmann_json 3.7.0 REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclcpp_action REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(rosidl_typesupport_introspection_cpp REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(Threads REQUIRED)
@@ -41,6 +42,7 @@ set(CORE_DEPS
   rclcpp
   rclcpp_lifecycle
   rclcpp_action
+  std_msgs
   rosidl_typesupport_introspection_cpp
 )
 if(INTERFACE_ACTION_DEPS)
@@ -86,6 +88,7 @@ set(EXPORT_DEPS
   rclcpp
   rclcpp_lifecycle
   rclcpp_action
+  std_msgs
   rosidl_typesupport_introspection_cpp
   nlohmann_json
   Boost

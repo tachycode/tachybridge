@@ -13,6 +13,7 @@
   <depend>rclcpp</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>rclcpp_action</depend>
+  <depend>std_msgs</depend>
   <depend>rosidl_typesupport_introspection_cpp</depend>
 
   <exec_depend>rmw_cyclonedds_cpp</exec_depend>

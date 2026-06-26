@@ -1,10 +1,102 @@
 #include "cpp_rosbridge_core/capabilities/topic.hpp"
 #include "cpp_rosbridge_core/introspection.hpp"
+#include <chrono>
+#include <deque>
+#include <mutex>
 #include <rclcpp/generic_publisher.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
+#include <std_msgs/msg/string.hpp>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace cpp_rosbridge_core {
 namespace capabilities {
+
+namespace {
+
+constexpr double kHzWindowSec = 5.0;
+constexpr double kHzPublishIntervalSec = 1.0;
+constexpr const char* kPublisherHzStatusTopic = "/simdd/publisher_hz_status";
+
+struct TopicHzCounter {
+    std::deque<std::chrono::steady_clock::time_point> samples;
+    std::chrono::steady_clock::time_point last_publish{};
+};
+
+std::mutex g_hz_mutex;
+std::unordered_map<std::string, TopicHzCounter> g_hz_counters;
+rclcpp::Publisher<std_msgs::msg::String>::SharedPtr g_hz_publisher;
+
+bool is_saved_topic(const std::string& topic_name) {
+    static const std::unordered_set<std::string> saved_topics = {
+        "/simdd/left_wrist_cam/compressed",
+        "/simdd/right_wrist_cam/compressed",
+        "/simdd/head_cam/compressed",
+        "/simdd/pose_head",
+        "/simdd/pose_left",
+        "/simdd/pose_right",
+        "/simdd/trigger_left",
+        "/simdd/trigger_right",
+    };
+    return saved_topics.find(topic_name) != saved_topics.end();
+}
+
+double calculate_hz(const std::deque<std::chrono::steady_clock::time_point>& samples) {
+    if (samples.size() < 2) {
+        return 0.0;
+    }
+    const std::chrono::duration<double> elapsed = samples.back() - samples.front();
+    if (elapsed.count() <= 0.0) {
+        return 0.0;
+    }
+    return static_cast<double>(samples.size() - 1) / elapsed.count();
+}
+
+void report_publisher_hz(
+    rclcpp_lifecycle::LifecycleNode* node,
+    const std::string& topic_name) {
+    if (!is_saved_topic(topic_name)) {
+        return;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    std_msgs::msg::String msg;
+    {
+        std::lock_guard<std::mutex> lock(g_hz_mutex);
+        if (!g_hz_publisher) {
+            g_hz_publisher = node->create_publisher<std_msgs::msg::String>(
+                kPublisherHzStatusTopic,
+                rclcpp::QoS(10));
+        }
+
+        auto& counter = g_hz_counters[topic_name];
+        counter.samples.push_back(now);
+        const auto cutoff = now - std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+            std::chrono::duration<double>(kHzWindowSec));
+        while (!counter.samples.empty() && counter.samples.front() < cutoff) {
+            counter.samples.pop_front();
+        }
+
+        if (
+            counter.last_publish.time_since_epoch().count() != 0
+            && std::chrono::duration<double>(now - counter.last_publish).count()
+                < kHzPublishIntervalSec) {
+            return;
+        }
+        counter.last_publish = now;
+
+        nlohmann::json payload = {
+            {"topic_name", topic_name},
+            {"hz", calculate_hz(counter.samples)},
+            {"source", "cpp_rosbridge_server"},
+            {"stamp", node->now().seconds()},
+        };
+        msg.data = payload.dump();
+    }
+    g_hz_publisher->publish(msg);
+}
+
+}  // namespace
 
 // --- Ping ---
 
@@ -83,6 +175,7 @@ void Publish::handle_message(const nlohmann::json& message, std::function<void(c
         auto* generic_pub = dynamic_cast<rclcpp::GenericPublisher*>(publisher.get());
         if (generic_pub) {
             generic_pub->publish(*serialized);
+            report_publisher_hz(protocol_->get_node(), topic_name);
         } else {
             nlohmann::json response = {
                 {"op", "status"},

@@ -2,7 +2,7 @@
 
 # Constants
 set(EMPTY_REGISTRATION_TEMPLATE
-    "#include \"cpp_rosbridge_core/action_bridge.hpp\"\n// No actions auto-discovered\nnamespace cpp_rosbridge_core {\nvoid register_generated_actions(action::ActionBridgeRegistry&) {}\n}\n")
+    "#include \"cpp_rosbridge_core/protocol.hpp\"\n// No actions auto-discovered\nnamespace cpp_rosbridge_core {\nvoid register_generated_actions(action::ActionBridgeRegistry&) {}\n}\n")
 set(YAML_NAME_REGEX "name: ([A-Za-z0-9_]+)")
 set(SNAKE_CASE_REGEX1 "(.)([A-Z][a-z]+)")
 set(SNAKE_CASE_REGEX2 "([a-z0-9])([A-Z])")
