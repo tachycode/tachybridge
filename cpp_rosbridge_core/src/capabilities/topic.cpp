@@ -16,7 +16,7 @@ namespace {
 
 constexpr double kHzWindowSec = 5.0;
 constexpr double kHzPublishIntervalSec = 1.0;
-constexpr const char* kPublisherHzStatusTopic = "/simdd/publisher_hz_status";
+constexpr const char* kPublisherHzStatusTopic = "/dexdd/publisher_hz_status";
 
 struct TopicHzCounter {
     std::deque<std::chrono::steady_clock::time_point> samples;
@@ -29,14 +29,10 @@ rclcpp::Publisher<std_msgs::msg::String>::SharedPtr g_hz_publisher;
 
 bool is_saved_topic(const std::string& topic_name) {
     static const std::unordered_set<std::string> saved_topics = {
-        "/simdd/left_wrist_cam/compressed",
-        "/simdd/right_wrist_cam/compressed",
-        "/simdd/head_cam/compressed",
-        "/simdd/pose_head",
-        "/simdd/pose_left",
-        "/simdd/pose_right",
-        "/simdd/trigger_left",
-        "/simdd/trigger_right",
+        "/dexdd/pose_left",
+        "/dexdd/pose_right",
+        "/dexdd/pose_head",
+        "/dexdd/head_cam/compressed",
     };
     return saved_topics.find(topic_name) != saved_topics.end();
 }
